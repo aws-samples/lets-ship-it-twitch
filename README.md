@@ -7,7 +7,7 @@ In our first episode, we will show you the application that we are going to buil
 
 - [Watch on-demand](https://www.twitch.tv/videos/1128093809)
 
-### [**Episode 2: Networking and Security Layers**](episode-2-simple-web-app-vpc-ec2)
+### [**Episode 2: Networking and Security Layers**](episodes/episode-2-simple-web-app-vpc-ec2)
 Now that our account is set up and ready to go, it’s time to get our base networking infrastructure established and deploy our application on AWS.
 
 - [Watch on-demand](https://www.twitch.tv/videos/1134099974)
