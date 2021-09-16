@@ -9,6 +9,8 @@ Now that our account is set up and ready to go, it’s time to get our base netw
 
 Deploy [this](episode-2-cloudformation.yml) AWS CloudFormation template to provision the resources shown in the stream for yourself. Charges may apply for the resources deployed, and will continue to be charged if you do not remove them. 
 
+![Architecture Diagram](episode-2-architecture-diagram.png)
+
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.

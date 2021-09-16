@@ -15,7 +15,7 @@ Now that our account is set up and ready to go, it’s time to get our base netw
 ### **Episode 3: Get Ready for Scale**
 Do you know how to ensure that your application components can scale quickly to be reliable and available? Join us to learn more.
 
-- [Watch live](https://www.twitch.tv/aws):  Monday, September 13, 2021 at 7:30 am - 8:30 am PT.
+- [Watch on-demand](https://www.twitch.tv/videos/1147625427)
 
 ### **Episode 4: Data Strategy**
 In this episode, we will look at our data needs and explore the best practices for selecting the right database. We’ll also learn about hosting and connecting databases securely.
