@@ -12,7 +12,7 @@ Now that our account is set up and ready to go, it’s time to get our base netw
 
 - [Watch on-demand](https://www.twitch.tv/videos/1134099974)
 
-### **Episode 3: Get Ready for Scale**
+### [**Episode 3: Get Ready for Scale**](episodes/episode-3-web-app-alb-autoscaling)
 Do you know how to ensure that your application components can scale quickly to be reliable and available? Join us to learn more.
 
 - [Watch on-demand](https://www.twitch.tv/videos/1147625427)
