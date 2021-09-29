@@ -1,0 +1,758 @@
+Description:  This template deploys a VPC, with a pair of public and private subnets spread
+  across two Availability Zones. It deploys an internet gateway, with a default
+  route on the public subnets. It deploys a pair of NAT gateways (one in each AZ),
+  and default routes for them in the private subnets. It also deploy UnicornShop application with ALB,ASGs,RDS, CloudFront.
+
+Parameters:
+  EnvironmentName:
+    Description: An environment name that is prefixed to resource names
+    Type: String
+    Default: episode-4
+
+  VpcCIDR:
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.192.0.0/16
+
+  LoadBalancerSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.10.0/24
+
+  LoadBalancerSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.11.0/24
+
+  ApplicationSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.20.0/24
+
+  ApplicationSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.21.0/24
+
+  OperatorEmail:
+    Description: Email address to notify if there are any scaling operations
+    Type: String
+    AllowedPattern: "([a-zA-Z0-9_\\-\\.]+)@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.)|(([a-zA-Z0-9\\-]+\\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\\]?)"
+    ConstraintDescription: must be a valid email address.
+
+  LatestAmiId:
+    Type: String
+    Description: Use the AMI created using the commands in the README
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  LoadBalancerSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref LoadBalancerSubnet1CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Load Balancer Subnet 1 (AZ1)
+
+  LoadBalancerSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref LoadBalancerSubnet2CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Load Balancer Subnet 2 (AZ2)
+
+  ApplicationSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: !Ref ApplicationSubnet1CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Application Subnet 1 (AZ1)
+
+  ApplicationSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref ApplicationSubnet2CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Application Subnet 2 (AZ2)
+
+  NatGateway1EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGateway2EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGateway1EIP.AllocationId
+      SubnetId: !Ref LoadBalancerSubnet1
+
+  NatGateway2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGateway2EIP.AllocationId
+      SubnetId: !Ref LoadBalancerSubnet2
+
+  PublicRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public Route 1
+
+  PublicRoute1:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+
+  PublicRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public Route 2
+
+  PublicRoute2:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  LoadBalancerSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable1
+      SubnetId: !Ref LoadBalancerSubnet1
+
+  LoadBalancerSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable2
+      SubnetId: !Ref LoadBalancerSubnet2
+
+
+  PrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Routes (AZ1)
+
+  DefaultPrivateRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway1
+
+  ApplicationSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      SubnetId: !Ref ApplicationSubnet1
+
+  PrivateRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Routes (AZ2)
+
+  DefaultPrivateRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway2
+
+  ApplicationSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      SubnetId: !Ref ApplicationSubnet2
+
+  NoIngressSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "no-ingress-sg"
+      GroupDescription: "Security group with no ingress rule"
+      VpcId: !Ref VPC
+
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Open database for access
+      VpcId:
+        Ref: VPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 3306
+        ToPort: 3306
+        SourceSecurityGroupId:
+          Ref: EC2SecurityGroup
+      Tags:
+      - Key: Name
+        Value: DBSecurityGroup
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: DBSubnetGroup
+      SubnetIds:
+      - Ref: ApplicationSubnet1
+      - Ref: ApplicationSubnet2
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Application Access
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        -
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        -
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - 
+          IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        -
+          Key: Name
+          Value: LB-SecurityGroup
+
+
+  EC2SecurityGroup: 
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Application Access
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        # -
+        #   IpProtocol: tcp
+        #   FromPort: 22
+        #   ToPort: 22
+        #   CidrIp: 0.0.0.0/0
+        -
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: 
+            Fn::Select:
+            - 0
+            - Fn::GetAtt:
+              - ApplicationLoadBalancer
+              - SecurityGroups
+      Tags:
+        -
+          Key: Name
+          Value: EC2SecurityGroup
+
+  # EC2SecurityGroupDBRule:
+  #   Type: AWS::EC2::SecurityGroupEgress
+  #   Properties:
+  #     GroupId:
+  #       Ref: EC2SecurityGroup
+  #     IpProtocol: tcp
+  #     FromPort: 3306
+  #     ToPort: 3306
+  #     DestinationSecurityGroupId:
+  #       Ref: DBSecurityGroup
+
+  EC2SecurityGroupEgressEverywhere:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId:
+        Ref: EC2SecurityGroup
+      IpProtocol: -1
+      CidrIp: 0.0.0.0/0
+
+  InstanceLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 7
+
+
+  CFNPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CFNPolicy
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Action:
+          - cloudformation:SignalResource
+          Resource: '*'
+      Roles:
+      - Ref: S3Role
+  S3Policy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: S3Policy
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Action:
+          - s3:GetBucketLocation
+          - s3:GetObject
+          - s3:GetObjectAcl
+          - s3:PutObject
+          - s3:PutObjectAcl
+          Resource:
+          - Fn::GetAtt:
+            - UIBucket
+            - Arn
+          - Fn::GetAtt:
+            - AssetBucket
+            - Arn
+          - Fn::Join:
+            - ''
+            - - Fn::GetAtt:
+                - UIBucket
+                - Arn
+              - "/*"
+          - Fn::Join:
+            - ''
+            - - Fn::GetAtt:
+                - AssetBucket
+                - Arn
+              - "/*"
+      Roles:
+      - Ref: S3Role
+  S3Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'S3Role-${AWS::StackName}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      Path: "/"
+
+  S3InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+      - Ref: S3Role
+
+  DBInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
+    Properties:
+      # Does this need to change? I'm wondering if the app code uses it.
+      DBName: MonoToMicroDB
+      DBInstanceIdentifier: !Sub 'DatabaseInstance-${AWS::StackName}'
+      Engine: MySQL
+      DBInstanceClass: db.t2.micro
+      Port: '3306'
+      MasterUsername: MonoToMicroUser
+      MasterUserPassword: MonoToMicroPassword
+      VPCSecurityGroups:
+      - Ref: DBSecurityGroup
+      AllocatedStorage: '5'
+      DBSubnetGroupName:
+        Ref: DBSubnetGroup
+      MultiAZ: 'false'
+      Tags:
+      - Key: Name
+        Value: !Sub 'DatabaseInstance-${AWS::StackName}'
+
+  UIBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      WebsiteConfiguration:
+        ErrorDocument: error.html
+        IndexDocument: index.html
+  AssetBucket:
+    Type: AWS::S3::Bucket
+
+
+  ApplicationAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier: [!Ref ApplicationSubnet1, !Ref ApplicationSubnet2]
+      LaunchConfigurationName: !Ref EC2LaunchConfig
+      MinSize: 1
+      MaxSize: 5
+      TargetGroupARNs: 
+        - !Ref LoadBalancerTargetGroup
+      NotificationConfiguration:
+        TopicARN:
+          Ref: NotificationTopic
+        NotificationTypes:
+        - autoscaling:EC2_INSTANCE_LAUNCH
+        - autoscaling:EC2_INSTANCE_LAUNCH_ERROR
+        - autoscaling:EC2_INSTANCE_TERMINATE
+        - autoscaling:EC2_INSTANCE_TERMINATE_ERROR
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+        Count: '1'
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: '1'
+        MaxBatchSize: '1'
+        PauseTime: PT15M
+        WaitOnResourceSignals: 'true'
+
+
+  EC2LaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    UpdateReplacePolicy: Delete
+    Properties:
+      ImageId: !Ref LatestAmiId
+      SecurityGroups: 
+        - !Ref EC2SecurityGroup
+      InstanceType: t3.small
+      IamInstanceProfile:
+        !Ref S3InstanceProfile
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - "#!/bin/bash\n"
+            - "mysql -u MonoToMicroUser -h "
+            - !GetAtt 'DBInstance.Endpoint.Address'
+            - " -P 3306 -pMonoToMicroPassword < /home/ec2-user/MonoToMicro/MonoToMicroLegacy/database/create_tables.sql\n"
+            - "sed -i 's/ec2-3-86-160-226.compute-1.amazonaws.com/"
+            - !GetAtt 'AppCloudFrontDistribution.DomainName'
+            - "/g' /home/ec2-user/MonoToMicro/MonoToMicroUI/config.json\n"
+            - "aws s3 cp /home/ec2-user/MonoToMicro/MonoToMicroUI s3://"
+            - Ref: UIBucket
+            - "/ --recursive \n"
+            - "sed -i 's/_DATABASE_ENDPOINT_/"
+            - !GetAtt 'DBInstance.Endpoint.Address'
+            - "/g' /home/ec2-user/MonoToMicro/m2mcfg.sh\n"
+            - "sed -i 's/_AWS_REGION_/"
+            - Ref: AWS::Region
+            - "/g' /home/ec2-user/MonoToMicro/m2mcfg.sh\n"
+            - "sed -i 's/_UI_BUCKET_NAME_/"
+            - Ref: UIBucket
+            - "/g' /home/ec2-user/MonoToMicro/m2mcfg.sh\n"
+            - "sed -i 's/_ASSET_BUCKET_NAME_/"
+            - Ref: AssetBucket
+            - "/g' /home/ec2-user/MonoToMicro/m2mcfg.sh\n"
+            - "sed -i 's/_LOG_GROUP_NAME_/"
+            - Ref: InstanceLogGroup
+            - "/g' /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json\n"
+            - "systemctl daemon-reload\n"
+            - "systemctl enable mono2micro\n"
+            - "systemctl start mono2micro\n"
+            - "amazon-cloudwatch-agent-ctl -a fetch-config -s -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json\n"
+            - "sudo yum install -y aws-cfn-bootstrap\n"
+            - "/opt/aws/bin/cfn-signal -e $? --stack "
+            - Ref: AWS::StackName
+            - " --resource ApplicationAutoScalingGroup"
+            - " --region "
+            - Ref: AWS::Region
+            - "\n"
+
+
+  ApplicationScaleUpPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName:
+        Ref: ApplicationAutoScalingGroup
+      Cooldown: '60'
+      ScalingAdjustment: '1'
+
+  ApplicationScaleDownPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName:
+        Ref: ApplicationAutoScalingGroup
+      Cooldown: '60'
+      ScalingAdjustment: "-1"
+
+  CPUAlarmHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Scale-up if CPU > 80% for 1 minute
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: '60'
+      EvaluationPeriods: '1'
+      Threshold: '80'
+      AlarmActions:
+      - Ref: ApplicationScaleUpPolicy
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value:
+          Ref: ApplicationAutoScalingGroup
+      ComparisonOperator: GreaterThanThreshold
+
+  CPUAlarmLow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Scale-down if CPU < 70% for 1 minute
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: '60'
+      EvaluationPeriods: '1'
+      Threshold: '70'
+      AlarmActions:
+      - Ref: ApplicationScaleDownPolicy
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value:
+          Ref: ApplicationAutoScalingGroup
+      ComparisonOperator: LessThanThreshold
+
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      SecurityGroups: [!Ref LoadBalancerSecurityGroup]
+      Subnets: [!Ref LoadBalancerSubnet1, !Ref LoadBalancerSubnet2]
+
+  SecuredLoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref LoadBalancerTargetGroup
+      Conditions:
+        - Field: http-header
+          HttpHeaderConfig:
+            HttpHeaderName: x-unicorn-secret
+            Values:
+              - 'UnicornSecretToken'
+      ListenerArn: !Ref LoadBalancerListener
+      Priority: 1  
+
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      DefaultActions:
+      - Type: fixed-response
+        FixedResponseConfig:
+          ContentType: text/plain
+          StatusCode: 403
+          MessageBody: 'Access Denied'
+      Port: 80
+      Protocol: HTTP
+
+
+  LoadBalancerTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 3
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 5
+      VpcId: !Ref VPC
+
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+      - Endpoint:
+          Ref: OperatorEmail
+        Protocol: email
+
+  CloudFrontOriginIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: 'origin identity'
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    DependsOn: CloudFrontOriginIdentity
+    Properties:
+      Bucket: !Ref UIBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${CloudFrontOriginIdentity}'
+            Action: 's3:GetObject'
+            Resource: !Sub 'arn:aws:s3:::${UIBucket}/*'
+
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    DependsOn: CloudFrontOriginIdentity
+    Properties:
+      DistributionConfig:
+        Origins:
+        - DomainName: !GetAtt 'UIBucket.RegionalDomainName'
+          Id: !Sub 'S3Origin-${AWS::StackName}'
+          S3OriginConfig:
+            OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${CloudFrontOriginIdentity}'
+        Enabled: 'true'
+        Comment: UI Distribution
+        DefaultRootObject: index.html
+        DefaultCacheBehavior:
+          AllowedMethods:
+          - GET
+          - HEAD
+          TargetOriginId: !Sub 'S3Origin-${AWS::StackName}'
+          ForwardedValues:
+            QueryString: 'false'
+            Cookies:
+              Forward: none
+          ViewerProtocolPolicy: allow-all
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: 'true'
+
+
+  AppCloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    DependsOn: CloudFrontOriginIdentity
+    Properties:
+      DistributionConfig:
+        Origins:
+        - DomainName: !GetAtt 'ApplicationLoadBalancer.DNSName'
+          Id: !Ref 'ApplicationLoadBalancer'
+          CustomOriginConfig:
+            HTTPPort: '80'
+            OriginProtocolPolicy: 'match-viewer'
+          OriginCustomHeaders:
+            - HeaderName: x-unicorn-secret
+              HeaderValue: 'UnicornSecretToken'
+        Enabled: 'true'
+        Comment: App Distribution
+        DefaultCacheBehavior:
+          AllowedMethods:
+          - GET
+          - HEAD
+          - DELETE
+          - OPTIONS
+          - PATCH
+          - POST
+          - PUT
+          TargetOriginId: !Ref 'ApplicationLoadBalancer'
+          ForwardedValues:
+            QueryString: 'true'
+            Cookies:
+              Forward: 'all'
+          ViewerProtocolPolicy: allow-all
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: 'true'
+
+
+Outputs:
+  URL:
+    Description: The URL of the Load Balancer
+    Value:
+      Fn::Join:
+      - ''
+      - - http://
+        - Fn::GetAtt:
+          - ApplicationLoadBalancer
+          - DNSName
+          
+  AppUrl:
+    Description: URL of API
+    Value: !GetAtt 'AppCloudFrontDistribution.DomainName'
+
+  UIUrl:
+    Description: URL of UI
+    Value: !GetAtt 'CloudFrontDistribution.DomainName'
+
+  VPC:
+    Description: A reference to the created VPC
+    Value: !Ref VPC
+
+  PublicSubnets:
+    Description: A list of the public subnets
+    Value: !Join [ ",", [ !Ref LoadBalancerSubnet1, !Ref LoadBalancerSubnet2 ]]
+
+  PrivateSubnets:
+    Description: A list of the private subnets
+    Value: !Join [ ",", [ !Ref ApplicationSubnet1, !Ref ApplicationSubnet2 ]]
+
+  LoadBalancerSubnet1:
+    Description: A reference to the load balancer subnet in the 1st Availability Zone
+    Value: !Ref LoadBalancerSubnet1
+
+  LoadBalancerSubnet2:
+    Description: A reference to the load balancer subnet in the 2nd Availability Zone
+    Value: !Ref LoadBalancerSubnet2
+
+  ApplicationSubnet1:
+    Description: A reference to the application subnet in the 1st Availability Zone
+    Value: !Ref ApplicationSubnet1
+
+  ApplicationSubnet2:
+    Description: A reference to the application subnet in the 2nd Availability Zone
+    Value: !Ref ApplicationSubnet2
+
+  NoIngressSecurityGroup:
+    Description: Security group with no ingress rule
+    Value: !Ref NoIngressSecurityGroup

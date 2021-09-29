@@ -6,7 +6,7 @@ Do you know how to ensure that your application components can scale quickly to 
 - [Watch on-demand](https://www.twitch.tv/videos/1147625427)
 
 ### **AWS CloudFormation**
-Template Coming Soon.
+Deploy [this](episode-3-cloudformation.yml) AWS CloudFormation template to provision the resources shown in the stream for yourself. Charges may apply for the resources deployed, and will continue to be charged if you do not remove them. 
 
 ![Architecture Diagram](episode-3-architecture-diagram.png)
 

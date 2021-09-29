@@ -17,18 +17,18 @@ Do you know how to ensure that your application components can scale quickly to 
 
 - [Watch on-demand](https://www.twitch.tv/videos/1147625427)
 
-### **Episode 4: Data Strategy**
+### [**Episode 4: Data Strategy**](episodes/episode-4-unicorn-web-app-rds)
 In this episode, we will look at our data needs and explore the best practices for selecting the right database. We’ll also learn about hosting and connecting databases securely.
 
-- [Watch live](https://www.twitch.tv/aws):  Monday, September 20, 2021 at 7:30 am - 8:30 am PT.
+- [Watch on-demand](https://www.twitch.tv/videos/1154249652)
 
-### **Episode 5: Production Readiness**
-Our application is now running in a highly available and secure manner. In this episode, we will talk about some key concepts to help you ensure that your application is ready for prime time: disaster recovery, monitoring, and cost analysis.
+### [**Episode 5: Production Readiness**](episodes/episode-5-unicorn-web-app-scale)
+Our application is now running in a highly available and secure manner. In this episode, we will talk about some key concepts to help you ensure that your application is ready for prime time: distribution, fault tolerance, and cost analysis.
 
-- [Watch live](https://www.twitch.tv/aws):  Monday, September 27, 2021 at 7:30 am - 8:30 am PT.
+- [Watch on-demand](https://www.twitch.tv/videos/1160807752)
 
 ### **Episode 6: Onward and Upward**
-We’ve successfully deployed our application and are ready to scale. We’ll kick this episode off by reviewing the key concepts that we’ve covered so far. After that, we’ll talk about how you can continue to build your skills and speed up deployments with Infrastructure as Code and AWS Managed Services.
+We’ve successfully deployed our application and are ready to scale. We’ll kick this episode off by reviewing the key concepts that we’ve covered so far. After that, we’ll talk about how you can continue to build your skills and speed up deployments with Infrastructure as Code and managed services for containers, databases, machine learning, and more.
 
 - [Watch live](https://www.twitch.tv/aws):  Monday, October 4, 2021 at 7:30 am - 8:30 am PT.
 
