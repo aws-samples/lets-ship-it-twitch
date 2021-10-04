@@ -30,7 +30,7 @@ Our application is now running in a highly available and secure manner. In this 
 ### **Episode 6: Onward and Upward**
 We’ve successfully deployed our application and are ready to scale. We’ll kick this episode off by reviewing the key concepts that we’ve covered so far. After that, we’ll talk about how you can continue to build your skills and speed up deployments with Infrastructure as Code and managed services for containers, databases, machine learning, and more.
 
-- [Watch live](https://www.twitch.tv/aws):  Monday, October 4, 2021 at 7:30 am - 8:30 am PT.
+- [Watch on-demand](https://www.twitch.tv/videos/1167220412)
 
 
 ## Security
