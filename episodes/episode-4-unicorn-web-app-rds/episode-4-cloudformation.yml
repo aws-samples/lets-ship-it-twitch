@@ -41,6 +41,7 @@ Parameters:
     ConstraintDescription: must be a valid email address.
 
   DatabasePassword:
+    NoEcho: true
     Type: String
     Description: Database Password
 

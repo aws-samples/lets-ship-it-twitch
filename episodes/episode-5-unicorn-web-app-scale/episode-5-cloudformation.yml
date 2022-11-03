@@ -40,6 +40,11 @@ Parameters:
     AllowedPattern: "([a-zA-Z0-9_\\-\\.]+)@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.)|(([a-zA-Z0-9\\-]+\\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\\]?)"
     ConstraintDescription: must be a valid email address.
 
+  DatabasePassword:
+    NoEcho: true
+    Type: String
+    Description: Database Password
+
   LatestAmiId:
     Type: String
     Description: Use the AMI created using the commands in the README
@@ -414,7 +419,7 @@ Resources:
       DBInstanceClass: db.t2.micro
       Port: '3306'
       MasterUsername: MonoToMicroUser
-      MasterUserPassword: MonoToMicroPassword
+      MasterUserPassword: !Ref DatabasePassword
       VPCSecurityGroups:
       - Ref: DBSecurityGroup
       AllocatedStorage: '5'
@@ -481,7 +486,9 @@ Resources:
           - - "#!/bin/bash\n"
             - "mysql -u MonoToMicroUser -h "
             - !GetAtt 'DBInstance.Endpoint.Address'
-            - " -P 3306 -pMonoToMicroPassword < /home/ec2-user/MonoToMicro/MonoToMicroLegacy/database/create_tables.sql\n"
+            - " -P 3306 -p"
+            - Ref: DatabasePassword
+            - " < /home/ec2-user/MonoToMicro/MonoToMicroLegacy/database/create_tables.sql\n"
             - "sed -i 's/ec2-3-86-160-226.compute-1.amazonaws.com/"
             - !GetAtt 'AppCloudFrontDistribution.DomainName'
             - "/g' /home/ec2-user/MonoToMicro/MonoToMicroUI/config.json\n"
